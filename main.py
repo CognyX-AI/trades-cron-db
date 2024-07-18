@@ -77,7 +77,7 @@ def decrypt(encrypted_text):
     unpadded_text = unpad(decrypted_bytes, AES.block_size)
     return unpadded_text.decode()
 
-
+ 
 def send_slack_message(error_message):
     print(error_message)
     try:
