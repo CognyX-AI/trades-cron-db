@@ -10,6 +10,8 @@ pycrypto = "*"
 slack-sdk = "*"
 pycryptodome = "*"
 pycryptodomex = "*"
+psycopg-binary = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 
