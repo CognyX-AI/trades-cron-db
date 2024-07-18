@@ -80,14 +80,14 @@ def decrypt(encrypted_text):
 
 def send_slack_message(error_message):
     print(error_message)
-    # try:
-    #     client = WebClient(token=SLACK_API_TOKEN)
-    #     response = client.chat_postMessage(
-    #         channel=CHANNEL_ID,
-    #         text=f"Error encountered in Database cron: {error_message}",
-    #     )
-    # except SlackApiError as e:
-    #     script_logger.error(f"Slack API error: {e.response['error']}")
+    try:
+        client = WebClient(token=SLACK_API_TOKEN)
+        response = client.chat_postMessage(
+            channel=CHANNEL_ID,
+            text=f"Error encountered in Database cron: {error_message}",
+        )
+    except SlackApiError as e:
+        script_logger.error(f"Slack API error: {e.response['error']}")
 
 
 def decrypt_users(users):
