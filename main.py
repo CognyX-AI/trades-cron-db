@@ -130,7 +130,35 @@ def get_users(env="DEV"):
             conn.close()
 
 
-def get_trades(user):
+def update_verification(user, env):
+    conn = None
+    cursor = None
+    
+    try:
+        db_config = DB_CONFIG_FETCH_DEV if env == "DEV" else DB_CONFIG_FETCH_PROD
+
+        conn = psycopg2.connect(**db_config)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute(
+            "UPDATE users_credentials_xstation SET verification = FALSE WHERE xstation_id = %s;",
+            (user['xstation_id'],)
+        )
+
+        conn.commit()
+
+    except (Exception, psycopg2.Error) as error:
+        script_logger.error(f"Error updating verification: {error}")
+        send_slack_message(f"Error updating verification: {error}")
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def get_trades(user, env="DEV"):
     try:
         xstation_id = user.get("xstation_id")
         password = user.get("password")
@@ -157,6 +185,7 @@ def get_trades(user):
 
             return data_open + data_history
         else:
+            update_verification(user, env)
             script_logger.error(f"Incorrect login for user: {xstation_id}")
 
     except Exception as e:
@@ -297,7 +326,7 @@ def save_trades(trades, user, env="DEV"):
 
 
 def process_user(user, env="DEV"):
-    trades = get_trades(user)
+    trades = get_trades(user, env)
     if trades:
         save_trades(trades, user, env=env)
 
@@ -309,7 +338,7 @@ def main(env="DEV"):
     if users:
         process_user_with_env = partial(process_user, env=env)
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             executor.map(process_user_with_env, users)
 
 
@@ -317,7 +346,3 @@ def main(env="DEV"):
 if __name__ == "__main__":
     main(env="DEV")
     main(env="PROD")
-    # users = get_users()
-    # trades = get_trades(users[1])
-    # create_table()
-    # save_trades(trades, users[1])    
