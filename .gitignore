@@ -1,2 +1,4 @@
 .env
 Logfile.log
+wrapper.log
+__pycache__/
