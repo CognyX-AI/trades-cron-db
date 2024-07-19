@@ -77,7 +77,7 @@ def decrypt(encrypted_text):
     unpadded_text = unpad(decrypted_bytes, AES.block_size)
     return unpadded_text.decode()
 
- 
+
 def send_slack_message(error_message):
     print(error_message)
     try:
@@ -133,16 +133,16 @@ def get_users(env="DEV"):
 def update_verification(user, env):
     conn = None
     cursor = None
-    
+
     try:
         db_config = DB_CONFIG_FETCH_DEV if env == "DEV" else DB_CONFIG_FETCH_PROD
 
         conn = psycopg2.connect(**db_config)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
+
         cursor.execute(
             "UPDATE users_credentials_xstation SET verification = FALSE WHERE xstation_id = %s;",
-            (user['xstation_id'],)
+            (user["xstation_id"],),
         )
 
         conn.commit()
@@ -201,8 +201,9 @@ def create_table(env="DEV"):
         db_config = DB_CONFIG_POST_DEV if env == "DEV" else DB_CONFIG_POST_PROD
         conn = psycopg2.connect(**db_config)
         cursor = conn.cursor()
-        
-        cursor.execute("""
+
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS trades (
                 order_id BIGINT PRIMARY KEY,
                 xstation_id VARCHAR(50),
@@ -235,7 +236,8 @@ def create_table(env="DEV"):
                 expiration BIGINT,
                 expiration_string VARCHAR(100)
             );
-        """)
+        """
+        )
         conn.commit()
 
     except (Exception, psycopg2.Error) as error:
@@ -252,65 +254,90 @@ def create_table(env="DEV"):
 def save_trades(trades, user, env="DEV"):
     conn = None
     cursor = None
-    
+
     try:
         db_config = DB_CONFIG_POST_DEV if env == "DEV" else DB_CONFIG_POST_PROD
 
         conn = psycopg2.connect(**db_config)
         cursor = conn.cursor()
 
+        columns = [
+            "order_id",
+            "xstation_id",
+            "cmd",
+            "digits",
+            "offset_value",
+            "order2",
+            "position",
+            "symbol",
+            "comment",
+            "custom_comment",
+            "commission",
+            "storage",
+            "margin_rate",
+            "close_price",
+            "open_price",
+            "nominal_value",
+            "profit",
+            "volume",
+            "sl",
+            "tp",
+            "closed",
+            "timestamp",
+            "spread",
+            "taxes",
+            "open_time",
+            "open_time_string",
+            "close_time",
+            "close_time_string",
+            "expiration",
+            "expiration_string",
+        ]
+
+        values_placeholders = ", ".join(["%s"] * len(columns))
+        update_set = ", ".join([f"{col} = EXCLUDED.{col}" for col in columns])
+
         for trade in trades:
-            cursor.execute("""
-                INSERT INTO trades (
-                    order_id, xstation_id, cmd, digits, offset_value, order2, position, symbol,
-                    comment, custom_comment, commission, storage, margin_rate, close_price,
-                    open_price, nominal_value, profit, volume, sl, tp, closed, timestamp,
-                    spread, taxes, open_time, open_time_string, close_time, close_time_string,
-                    expiration, expiration_string
-                )
-                VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                )
+            cursor.execute(
+                f"""
+                INSERT INTO trades ({", ".join(columns)})
+                VALUES ({values_placeholders})
                 ON CONFLICT (order_id) DO UPDATE SET
-                    close_price = EXCLUDED.close_price,
-                    profit = EXCLUDED.profit,
-                    closed = EXCLUDED.closed,
-                    timestamp = EXCLUDED.timestamp,
-                    close_time = EXCLUDED.close_time,
-                    close_time_string = EXCLUDED.close_time_string;
-            """, (
-                trade['order'],
-                user['xstation_id'],
-                trade['cmd'],
-                trade['digits'],
-                trade['offset'],
-                trade['order2'],
-                trade['position'],
-                trade['symbol'],
-                trade['comment'],
-                trade['customComment'],
-                trade['commission'],
-                trade['storage'],
-                trade['margin_rate'],
-                trade['close_price'],
-                trade['open_price'],
-                trade['nominalValue'],
-                trade['profit'],
-                trade['volume'],
-                trade['sl'],
-                trade['tp'],
-                trade['closed'],
-                trade['timestamp'],
-                trade['spread'],
-                trade['taxes'],
-                trade['open_time'],
-                trade['open_timeString'],
-                trade.get('close_time'),
-                trade.get('close_timeString'),
-                trade.get('expiration'),
-                trade.get('expirationString')
-            ))
+                {update_set};
+            """,
+                (
+                    trade["order"],
+                    user["xstation_id"],
+                    trade["cmd"],
+                    trade["digits"],
+                    trade["offset"],
+                    trade["order2"],
+                    trade["position"],
+                    trade["symbol"],
+                    trade["comment"],
+                    trade["customComment"],
+                    trade["commission"],
+                    trade["storage"],
+                    trade["margin_rate"],
+                    trade["close_price"],
+                    trade["open_price"],
+                    trade["nominalValue"],
+                    trade["profit"],
+                    trade["volume"],
+                    trade["sl"],
+                    trade["tp"],
+                    trade["closed"],
+                    trade["timestamp"],
+                    trade["spread"],
+                    trade["taxes"],
+                    trade["open_time"],
+                    trade["open_timeString"],
+                    trade.get("close_time"),
+                    trade.get("close_timeString"),
+                    trade.get("expiration"),
+                    trade.get("expirationString"),
+                ),
+            )
 
         conn.commit()
 
@@ -334,13 +361,12 @@ def process_user(user, env="DEV"):
 def main(env="DEV"):
     create_table(env)
     users = get_users(env)
-    
+
     if users:
         process_user_with_env = partial(process_user, env=env)
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             executor.map(process_user_with_env, users)
-
 
 
 if __name__ == "__main__":
